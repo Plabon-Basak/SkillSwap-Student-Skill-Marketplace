@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.local
+*.env
+!*.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.htmlcov/
+.coverage
+coverage.xml
+.mypy_cache/
+.venv/
+venv/
+
+# Django
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+backend/logs/
+*.log
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml

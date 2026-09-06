@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repository. This keeps behavior
+# consistent between Windows development and Linux containers/CI.
+* text=auto eol=lf
+
+# Binary files must not be normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

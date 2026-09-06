@@ -1,0 +1,9 @@
+# Core runtime dependencies for SkillSwap backend.
+# Pinned for reproducible production builds.
+
+Django==6.1.1
+djangorestframework==3.18.0
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+psycopg[binary]==3.3.5
+python-dotenv==1.2.3
