@@ -10,6 +10,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.listings.models import Application
+from apps.messaging.services import create_thread_for_order
+from apps.notifications.services import notify
 from apps.orders.models import Order, Payment
 from apps.profiles.models import Profile
 
@@ -42,6 +44,19 @@ def create_order(application: Application, buyer: Profile, *, note='') -> Order:
         amount=order.price,
         currency=order.currency,
     )
+    create_thread_for_order(order)
+    notify(
+        recipient=listing.provider.user,
+        actor=buyer.user,
+        verb='new_order',
+        target_type='order',
+        target_id=order.id,
+        data={
+            'price': str(order.price),
+            'currency': order.currency,
+            'listing_title': listing.title,
+        },
+    )
     return order
 
 
@@ -50,7 +65,7 @@ def _require_status(order: Order, statuses: tuple[str, ...], message: str):
         raise ValidationError(message)
 
 
-def cancel_order(order: Order) -> Order:
+def cancel_order(order: Order, cancelled_by=None) -> Order:
     """Buyer or provider may cancel while payment is still due."""
     _require_status(
         order,
@@ -60,6 +75,15 @@ def cancel_order(order: Order) -> Order:
     order.status = Order.Status.CANCELLED
     order.cancelled_at = timezone.now()
     order.save(update_fields=['status', 'cancelled_at', 'updated_at'])
+    if cancelled_by is not None:
+        counterpart = order.other_party(cancelled_by)
+        notify(
+            recipient=counterpart.user,
+            actor=cancelled_by.user,
+            verb='order_cancelled',
+            target_type='order',
+            target_id=order.id,
+        )
     return order
 
 
@@ -76,6 +100,14 @@ def mark_order_paid(order: Order, *, gateway_charge_id='') -> Order:
     payment.status = Payment.Status.PAID
     payment.gateway_charge_id = gateway_charge_id
     payment.save(update_fields=['status', 'gateway_charge_id', 'updated_at'])
+    notify(
+        recipient=order.provider.user,
+        actor=order.buyer.user,
+        verb='order_paid',
+        target_type='order',
+        target_id=order.id,
+        data={'amount': str(order.price), 'currency': order.currency},
+    )
     return order
 
 
@@ -89,6 +121,13 @@ def start_order(order: Order) -> Order:
     order.status = Order.Status.IN_PROGRESS
     order.started_at = timezone.now()
     order.save(update_fields=['status', 'started_at', 'updated_at'])
+    notify(
+        recipient=order.buyer.user,
+        actor=order.provider.user,
+        verb='order_started',
+        target_type='order',
+        target_id=order.id,
+    )
     return order
 
 
@@ -102,6 +141,13 @@ def complete_order(order: Order) -> Order:
     order.status = Order.Status.COMPLETED
     order.completed_at = timezone.now()
     order.save(update_fields=['status', 'completed_at', 'updated_at'])
+    notify(
+        recipient=order.buyer.user,
+        actor=order.provider.user,
+        verb='order_completed',
+        target_type='order',
+        target_id=order.id,
+    )
     return order
 
 

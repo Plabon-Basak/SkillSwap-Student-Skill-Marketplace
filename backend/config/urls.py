@@ -13,6 +13,8 @@ urlpatterns = [
     path('api/v1/', include('apps.profiles.urls')),
     path('api/v1/', include('apps.listings.urls')),
     path('api/v1/', include('apps.orders.urls')),
+    path('api/v1/', include('apps.messaging.urls')),
+    path('api/v1/', include('apps.notifications.urls')),
 ]
 
 # Serve uploaded media during development only; production uses a real

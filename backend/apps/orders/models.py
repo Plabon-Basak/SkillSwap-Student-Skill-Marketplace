@@ -59,6 +59,9 @@ class Order(models.Model):
     def __str__(self):
         return f'Order {self.pk} ({self.buyer.user.username} <- {self.listing_id})'
 
+    def other_party(self, profile):
+        return self.provider if profile.id == self.buyer_id else self.buyer
+
 
 class Payment(models.Model):
     """The payment record attached to an order."""

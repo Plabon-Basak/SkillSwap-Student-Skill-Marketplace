@@ -112,7 +112,9 @@ class OrderDetailView(generics.GenericAPIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             try:
-                order = services.cancel_order(order)
+                order = services.cancel_order(
+                    order, cancelled_by=_current_profile(request.user)
+                )
             except Exception as exc:
                 return Response(
                     {'detail': str(exc.detail[0])}, status=status.HTTP_400_BAD_REQUEST

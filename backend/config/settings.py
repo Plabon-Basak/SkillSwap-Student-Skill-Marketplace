@@ -92,6 +92,8 @@ INSTALLED_APPS = [
     'apps.profiles',
     'apps.listings',
     'apps.orders',
+    'apps.messaging',
+    'apps.notifications',
 ]
 
 MIDDLEWARE = [
@@ -170,6 +172,7 @@ REST_FRAMEWORK = {
         'application_create': '20/min',
         'order_create': '20/min',
         'order_checkout': '10/min',
+        'message_send': '60/min',
     },
 }
 
