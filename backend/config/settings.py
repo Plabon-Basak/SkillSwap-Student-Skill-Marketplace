@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.profiles',
     'apps.listings',
+    'apps.orders',
 ]
 
 MIDDLEWARE = [
@@ -167,6 +168,8 @@ REST_FRAMEWORK = {
         'auth_password_reset_verify': '10/min',
         'listing_create': '10/min',
         'application_create': '20/min',
+        'order_create': '20/min',
+        'order_checkout': '10/min',
     },
 }
 
@@ -266,6 +269,18 @@ MAILERS = {'default': _MAILERS_DEFAULT}
 
 # A one-time password is valid for this many seconds before it expires.
 OTP_CODE_VALIDITY_SECONDS = _env_int('OTP_CODE_VALIDITY_SECONDS', 600)
+
+# --------------------------------------------------------------------------
+# Payments
+#
+# Stripe powers order payments. When STRIPE_API_KEY is empty the backend runs
+# the gateway in simulation mode so local development needs no credentials.
+# --------------------------------------------------------------------------
+
+STRIPE_API_KEY = _env('STRIPE_API_KEY')
+STRIPE_WEBHOOK_SECRET = _env('STRIPE_WEBHOOK_SECRET')
+STRIPE_SUCCESS_URL = _env('STRIPE_SUCCESS_URL', 'http://localhost:5173/orders/success')
+STRIPE_CANCEL_URL = _env('STRIPE_CANCEL_URL', 'http://localhost:5173/orders/cancelled')
 
 # --------------------------------------------------------------------------
 # Security
