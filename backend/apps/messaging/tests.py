@@ -63,7 +63,7 @@ def make_listing(provider_user):
             'delivery_time_days': 7,
             'is_remote': True,
         },
-        format='json',
+        content_type='application/json',
         **auth(provider_user),
     )
     assert response.status_code == 201, response.content
@@ -84,7 +84,7 @@ def setup_order_with_thread():
     order_response = client().post(
         reverse('order-list'),
         {'application': application.id},
-        format='json',
+        content_type='application/json',
         **auth(buyer),
     )
     assert order_response.status_code == 201, order_response.content
@@ -157,7 +157,7 @@ class MessageTests(ThreadSetupMixin):
         return client().post(
             reverse('thread-messages', args=[thread.id]),
             {'body': body},
-            format='json',
+            content_type='application/json',
             **auth(user),
         )
 

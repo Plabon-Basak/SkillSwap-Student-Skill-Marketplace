@@ -33,6 +33,20 @@ class ProfilePublicSerializer(serializers.Serializer):
     skills = SkillSerializer(many=True, read_only=True)
     is_verified_student = serializers.BooleanField(read_only=True)
     member_since = serializers.DateTimeField(source='user.date_joined', read_only=True)
+    rating_average = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+
+    def get_rating_average(self, profile):
+        value = getattr(profile, 'rating_average', None)
+        if value is None:
+            return None
+        return float(round(value, 2))
+
+    def get_rating_count(self, profile):
+        value = getattr(profile, 'rating_count', None)
+        if value is None:
+            return 0
+        return int(value)
 
 
 class ProfileSelfSerializer(ProfilePublicSerializer):

@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     'apps.orders',
     'apps.messaging',
     'apps.notifications',
+    'apps.reviews',
 ]
 
 MIDDLEWARE = [
@@ -173,6 +174,7 @@ REST_FRAMEWORK = {
         'order_create': '20/min',
         'order_checkout': '10/min',
         'message_send': '60/min',
+        'review_create': '10/min',
     },
 }
 

@@ -60,7 +60,7 @@ def make_listing(username='alice', **overrides):
     }
     payload.update(overrides)
     response = client().post(
-        reverse('listing-list'), payload, format='json', **auth(user)
+        reverse('listing-list'), payload, content_type='application/json', **auth(user)
     )
     assert response.status_code == 201, response.content
     return response.json(), user
@@ -91,7 +91,7 @@ class ListingCreationTests(TestCase):
 
     def test_create_requires_authentication(self):
         response = client().post(
-            reverse('listing-list'), listing_payload(), format='json'
+            reverse('listing-list'), listing_payload(), content_type='application/json'
         )
 
         self.assertEqual(response.status_code, 401)
@@ -102,7 +102,7 @@ class ListingCreationTests(TestCase):
         response = client().post(
             reverse('listing-list'),
             listing_payload(),
-            format='json',
+            content_type='application/json',
             **auth(unverified),
         )
 
@@ -114,7 +114,7 @@ class ListingCreationTests(TestCase):
         response = client().post(
             reverse('listing-list'),
             listing_payload(),
-            format='json',
+            content_type='application/json',
             **auth(profileless),
         )
 
@@ -122,7 +122,10 @@ class ListingCreationTests(TestCase):
 
     def test_create_listing_success(self):
         response = client().post(
-            reverse('listing-list'), listing_payload(), format='json', **self.headers
+            reverse('listing-list'),
+            listing_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         self.assertEqual(response.status_code, 201)
@@ -141,7 +144,7 @@ class ListingCreationTests(TestCase):
         response = client().post(
             reverse('listing-list'),
             listing_payload(category=category.slug),
-            format='json',
+            content_type='application/json',
             **self.headers,
         )
 
@@ -152,7 +155,7 @@ class ListingCreationTests(TestCase):
         response = client().post(
             reverse('listing-list'),
             listing_payload(price='-5'),
-            format='json',
+            content_type='application/json',
             **self.headers,
         )
 
@@ -224,7 +227,7 @@ class ListingReadTests(TestCase):
         client().post(
             reverse('listing-list'),
             listing_payload(title='Second one'),
-            format='json',
+            content_type='application/json',
             **auth(self.seller),
         )
 
@@ -347,7 +350,10 @@ class ApplicationFlowTests(TestCase):
         payload = {'message': 'I need help with my midterm.', 'proposed_price': '20'}
         payload.update(overrides)
         return client().post(
-            self.applications_url, payload, format='json', **self.buyer_headers
+            self.applications_url,
+            payload,
+            content_type='application/json',
+            **self.buyer_headers,
         )
 
     def test_apply_success(self):
@@ -363,7 +369,10 @@ class ApplicationFlowTests(TestCase):
         ghost = make_player(username='ghost')
 
         response = client().post(
-            self.applications_url, {'message': 'hi'}, format='json', **auth(ghost)
+            self.applications_url,
+            {'message': 'hi'},
+            content_type='application/json',
+            **auth(ghost),
         )
 
         self.assertEqual(response.status_code, 400)
@@ -372,7 +381,7 @@ class ApplicationFlowTests(TestCase):
         response = client().post(
             self.applications_url,
             {'message': 'myself'},
-            format='json',
+            content_type='application/json',
             **self.seller_headers,
         )
 

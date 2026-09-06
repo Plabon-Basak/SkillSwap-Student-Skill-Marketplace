@@ -60,7 +60,9 @@ class ProfileAuthTests(TestCase):
         mail.outbox.clear()
 
     def test_create_requires_authentication(self):
-        response = self.client.post(reverse('profile-me'), {}, format='json')
+        response = self.client.post(
+            reverse('profile-me'), {}, content_type='application/json'
+        )
 
         self.assertEqual(response.status_code, 401)
 
@@ -68,7 +70,10 @@ class ProfileAuthTests(TestCase):
         user = make_user(verified=False)
 
         response = self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **auth(user)
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **auth(user),
         )
 
         self.assertEqual(response.status_code, 403)
@@ -83,7 +88,10 @@ class ProfileCrudTests(TestCase):
 
     def test_create_profile(self):
         response = self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         self.assertEqual(response.status_code, 201)
@@ -99,18 +107,27 @@ class ProfileCrudTests(TestCase):
 
     def test_create_duplicate_profile_conflicts(self):
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         response = self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         self.assertEqual(response.status_code, 409)
 
     def test_get_own_profile(self):
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         response = self.client.get(reverse('profile-me'), **self.headers)
@@ -125,7 +142,10 @@ class ProfileCrudTests(TestCase):
 
     def test_update_profile_partial(self):
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         response = self.client.patch(
@@ -142,7 +162,10 @@ class ProfileCrudTests(TestCase):
 
     def test_update_rejects_oversized_bio(self):
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
         response = self.client.patch(
@@ -156,7 +179,10 @@ class ProfileCrudTests(TestCase):
 
     def test_update_without_profile_returns_404(self):
         response = self.client.patch(
-            reverse('profile-me'), {'bio': 'hi'}, format='json', **self.headers
+            reverse('profile-me'),
+            {'bio': 'hi'},
+            content_type='application/json',
+            **self.headers,
         )
 
         self.assertEqual(response.status_code, 404)
@@ -202,7 +228,10 @@ class VerifiedBadgeTests(TestCase):
         self.user = make_user()
         self.headers = auth(self.user)
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **self.headers
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **self.headers,
         )
 
     def test_non_staff_cannot_self_verify(self):
@@ -221,7 +250,10 @@ class VerifiedBadgeTests(TestCase):
         staff.is_staff = True
         staff.save(update_fields=['is_staff'])
         self.client.post(
-            reverse('profile-me'), profile_payload(), format='json', **auth(staff)
+            reverse('profile-me'),
+            profile_payload(),
+            content_type='application/json',
+            **auth(staff),
         )
 
         response = self.client.patch(
@@ -243,14 +275,14 @@ class ProfilePrivacyTests(TestCase):
         self.client.post(
             reverse('profile-me'),
             profile_payload(university='Uni A'),
-            format='json',
+            content_type='application/json',
             **auth(self.seller),
         )
         self.hidden = make_user(username='hidden')
         self.client.post(
             reverse('profile-me'),
             profile_payload(university='Uni B', is_searchable=False),
-            format='json',
+            content_type='application/json',
             **auth(self.hidden),
         )
 

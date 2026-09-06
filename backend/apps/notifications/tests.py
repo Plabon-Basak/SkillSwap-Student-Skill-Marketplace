@@ -67,7 +67,7 @@ def make_listing(provider_user):
             'delivery_time_days': 7,
             'is_remote': True,
         },
-        format='json',
+        content_type='application/json',
         **auth(provider_user),
     )
     assert response.status_code == 201, response.content
@@ -96,7 +96,7 @@ class ScenarioSetupMixin(TestCase):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         assert response.status_code == 201, response.content

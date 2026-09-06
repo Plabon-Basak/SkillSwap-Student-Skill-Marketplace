@@ -1,5 +1,6 @@
 """API views for student profiles."""
 
+from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -14,6 +15,13 @@ from apps.profiles.serializers import (
 )
 from apps.profiles.services import search_profiles
 from apps.users.permissions import IsEmailVerified
+
+
+def _annotated(qs):
+    return qs.annotate(
+        rating_average=Avg('reviews_received__rating'),
+        rating_count=Count('reviews_received'),
+    )
 
 
 class MyProfileView(generics.GenericAPIView):
@@ -83,7 +91,7 @@ class ProfileListView(generics.ListAPIView):
         )
         if params.get('verified') == 'true':
             qs = qs.filter(is_verified_student=True)
-        return qs
+        return _annotated(qs)
 
 
 class ProfileDetailView(generics.RetrieveAPIView):
@@ -95,7 +103,7 @@ class ProfileDetailView(generics.RetrieveAPIView):
     lookup_url_kwarg = 'username'
 
     def get_queryset(self):
-        return (
+        return _annotated(
             Profile.objects.filter(is_searchable=True)
             .select_related('user')
             .prefetch_related('skills')

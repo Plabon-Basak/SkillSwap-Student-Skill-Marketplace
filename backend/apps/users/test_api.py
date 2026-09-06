@@ -49,13 +49,15 @@ class AuthTestBase(TestCase):
             'password': 'strong-pass-123',
         }
         payload.update(overrides)
-        return self.client.post(reverse('auth-register'), payload, format='json')
+        return self.client.post(
+            reverse('auth-register'), payload, content_type='application/json'
+        )
 
     def login(self, identifier='alice@example.com', password='strong-pass-123'):
         return self.client.post(
             reverse('auth-login'),
             {'identifier': identifier, 'password': password},
-            format='json',
+            content_type='application/json',
         )
 
     def auth_headers(self, user):
@@ -152,7 +154,9 @@ class TokenLifecycleTests(AuthTestBase):
         refresh = str(RefreshToken.for_user(User.objects.get()))
 
         response = self.client.post(
-            reverse('auth-refresh'), {'refresh': refresh}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': refresh},
+            content_type='application/json',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -165,22 +169,30 @@ class TokenLifecycleTests(AuthTestBase):
         refresh = str(RefreshToken.for_user(user))
 
         response = self.client.post(
-            reverse('auth-refresh'), {'refresh': refresh}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': refresh},
+            content_type='application/json',
         )
         old_refresh = response.json()['refresh']
         # One reuse is consumed by the rotation itself; a second is invalid.
         self.client.post(
-            reverse('auth-refresh'), {'refresh': old_refresh}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': old_refresh},
+            content_type='application/json',
         )
         repeat = self.client.post(
-            reverse('auth-refresh'), {'refresh': old_refresh}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': old_refresh},
+            content_type='application/json',
         )
 
         self.assertIn(repeat.status_code, [400, 401])
 
     def test_refresh_with_invalid_token(self):
         response = self.client.post(
-            reverse('auth-refresh'), {'refresh': 'not-a-token'}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': 'not-a-token'},
+            content_type='application/json',
         )
 
         self.assertEqual(response.status_code, 401)
@@ -192,11 +204,13 @@ class TokenLifecycleTests(AuthTestBase):
         logout = self.client.post(
             reverse('auth-logout'),
             {'refresh': refresh},
-            format='json',
+            content_type='application/json',
             **self.auth_headers(User.objects.get()),
         )
         reuse = self.client.post(
-            reverse('auth-refresh'), {'refresh': refresh}, format='json'
+            reverse('auth-refresh'),
+            {'refresh': refresh},
+            content_type='application/json',
         )
 
         self.assertEqual(logout.status_code, 204)
@@ -204,7 +218,7 @@ class TokenLifecycleTests(AuthTestBase):
 
     def test_logout_requires_authentication(self):
         response = self.client.post(
-            reverse('auth-logout'), {'refresh': 'x'}, format='json'
+            reverse('auth-logout'), {'refresh': 'x'}, content_type='application/json'
         )
 
         self.assertEqual(response.status_code, 401)
@@ -249,7 +263,7 @@ class EmailVerificationTests(AuthTestBase):
         return self.client.post(
             reverse('auth-email-verification-verify'),
             {'code': code},
-            format='json',
+            content_type='application/json',
             **self.headers,
         )
 
@@ -277,7 +291,9 @@ class EmailVerificationTests(AuthTestBase):
 
     def test_verify_email_requires_authentication(self):
         response = self.client.post(
-            reverse('auth-email-verification-verify'), {'code': '000000'}, format='json'
+            reverse('auth-email-verification-verify'),
+            {'code': '000000'},
+            content_type='application/json',
         )
 
         self.assertEqual(response.status_code, 401)
@@ -315,7 +331,9 @@ class PasswordResetTests(AuthTestBase):
 
     def request_reset(self, email='alice@example.com'):
         return self.client.post(
-            reverse('auth-password-reset-request'), {'email': email}, format='json'
+            reverse('auth-password-reset-request'),
+            {'email': email},
+            content_type='application/json',
         )
 
     def reset_password(
@@ -324,7 +342,7 @@ class PasswordResetTests(AuthTestBase):
         return self.client.post(
             reverse('auth-password-reset-verify'),
             {'email': email, 'code': code, 'new_password': new_password},
-            format='json',
+            content_type='application/json',
         )
 
     def test_request_reset_sends_otp(self):

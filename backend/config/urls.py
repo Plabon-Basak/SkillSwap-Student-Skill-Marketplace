@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/v1/', include('apps.orders.urls')),
     path('api/v1/', include('apps.messaging.urls')),
     path('api/v1/', include('apps.notifications.urls')),
+    path('api/v1/', include('apps.reviews.urls')),
 ]
 
 # Serve uploaded media during development only; production uses a real

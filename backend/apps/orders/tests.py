@@ -62,7 +62,10 @@ def make_listing(provider_user, **overrides):
     }
     payload.update(overrides)
     response = client().post(
-        reverse('listing-list'), payload, format='json', **auth(provider_user)
+        reverse('listing-list'),
+        payload,
+        content_type='application/json',
+        **auth(provider_user),
     )
     assert response.status_code == 201, response.content
     listing = Listing.objects.get(slug=response.json()['slug'])
@@ -97,7 +100,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
         )
         self.assertEqual(response.status_code, 401)
 
@@ -107,7 +110,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(hacker),
         )
         self.assertEqual(response.status_code, 403)
@@ -117,7 +120,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(no_profile),
         )
         self.assertEqual(response.status_code, 400)
@@ -128,7 +131,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(stranger),
         )
         self.assertEqual(response.status_code, 403)
@@ -137,7 +140,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 201)
@@ -157,7 +160,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id, 'note': 'I bid 40.'},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 201)
@@ -169,13 +172,13 @@ class OrderCreationTests(OrderSetupMixin):
         client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 400)
@@ -186,7 +189,7 @@ class OrderCreationTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': pending.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 400)
@@ -197,7 +200,7 @@ class OrderLifecycleTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 201)
@@ -315,7 +318,7 @@ class OrderViewTests(OrderSetupMixin):
         response = client().post(
             reverse('order-list'),
             {'application': self.application.id},
-            format='json',
+            content_type='application/json',
             **auth(self.buyer),
         )
         self.assertEqual(response.status_code, 201)
