@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     # Local apps
     'apps.core',
@@ -145,7 +146,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.users.authentication.UserJWTAuthentication',
     ),
     # Secure by default: endpoints require authentication unless explicitly
     # allowed (e.g. registration, login, public listing search).
@@ -153,6 +154,16 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer',),
+    # Per-scope rate limits (brute-force protection). Cache-backed; switch the
+    # cache backend to Redis in production for shared, durable counters.
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_login': '10/min',
+        'auth_register': '5/min',
+        'auth_otp_request': '3/min',
+        'auth_otp_verify': '10/min',
+        'auth_password_reset_request': '3/min',
+        'auth_password_reset_verify': '10/min',
+    },
 }
 
 # JWT configuration. When JWT_SECRET_KEY is empty the Django SECRET_KEY is
@@ -248,6 +259,9 @@ if _EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
     }
 
 MAILERS = {'default': _MAILERS_DEFAULT}
+
+# A one-time password is valid for this many seconds before it expires.
+OTP_CODE_VALIDITY_SECONDS = _env_int('OTP_CODE_VALIDITY_SECONDS', 600)
 
 # --------------------------------------------------------------------------
 # Security
