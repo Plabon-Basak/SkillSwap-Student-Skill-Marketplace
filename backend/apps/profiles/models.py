@@ -1,10 +1,9 @@
 """Student profiles and the taxonomies that describe their skills."""
 
-import os
-
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
+
+from apps.core.validators import validate_uploaded_image
 
 
 class Skill(models.Model):
@@ -26,20 +25,9 @@ class Skill(models.Model):
         return self.name
 
 
-def validate_avatar(value):
-    """Reject unsafe or oversized avatar uploads."""
-    max_size = 5 * 1024 * 1024  # 5 MB
-    allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
-
-    if value.size > max_size:
-        raise ValidationError('Avatar images must be smaller than 5 MB.')
-    if getattr(value, 'content_type', None) not in allowed_types:
-        raise ValidationError('Avatar must be a JPEG, PNG, WEBP or GIF image.')
-
-    allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
-    ext = os.path.splitext(value.name)[1].lower()
-    if ext not in allowed_extensions:
-        raise ValidationError('Unsupported image extension.')
+# Kept as an alias so the committed migration (apps.profiles.models.validate_avatar)
+# keeps resolving; behaviour now lives in the shared validator.
+validate_avatar = validate_uploaded_image
 
 
 class Profile(models.Model):

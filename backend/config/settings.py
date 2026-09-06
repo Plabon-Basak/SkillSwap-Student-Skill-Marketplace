@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.users',
     'apps.profiles',
+    'apps.listings',
 ]
 
 MIDDLEWARE = [
@@ -164,6 +165,8 @@ REST_FRAMEWORK = {
         'auth_otp_verify': '10/min',
         'auth_password_reset_request': '3/min',
         'auth_password_reset_verify': '10/min',
+        'listing_create': '10/min',
+        'application_create': '20/min',
     },
 }
 
