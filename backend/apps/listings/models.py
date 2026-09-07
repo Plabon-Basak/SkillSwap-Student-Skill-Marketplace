@@ -27,6 +27,15 @@ class Category(models.Model):
         return self.name
 
 
+class ListingModerationStatus(models.TextChoices):
+    DRAFT = 'draft', 'Draft'
+    PENDING = 'pending', 'Pending approval'
+    PUBLISHED = 'published', 'Published'
+    REJECTED = 'rejected', 'Rejected'
+    SUSPENDED = 'suspended', 'Suspended'
+    ARCHIVED = 'archived', 'Archived'
+
+
 class Listing(models.Model):
     """A service a student offers for sale, e.g. a Python tutoring package."""
 
@@ -59,6 +68,12 @@ class Listing(models.Model):
     )
     is_active = models.BooleanField(default=True)
     is_archived = models.BooleanField(default=False)
+    moderation_status = models.CharField(
+        max_length=12,
+        choices=ListingModerationStatus.choices,
+        default=ListingModerationStatus.PUBLISHED,
+        help_text='Lifecycle state tracked by the moderation workflow.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,6 +83,7 @@ class Listing(models.Model):
             models.Index(fields=['category', 'is_active']),
             models.Index(fields=['price']),
             models.Index(fields=['-created_at']),
+            models.Index(fields=['moderation_status']),
         ]
 
     def save(self, *args, **kwargs):

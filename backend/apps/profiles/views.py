@@ -2,6 +2,7 @@
 
 from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -28,6 +29,7 @@ class MyProfileView(generics.GenericAPIView):
     """Read, create and update the authenticated user's own profile."""
 
     permission_classes = [IsAuthenticated, IsEmailVerified]
+    serializer_class = ProfileWriteSerializer
 
     def _profile(self):
         return get_object_or_404(Profile, user=self.request.user)
@@ -41,10 +43,12 @@ class MyProfileView(generics.GenericAPIView):
             return False
         return True
 
+    @extend_schema(responses=ProfileSelfSerializer)
     def get(self, request, *args, **kwargs):
         profile = self._profile()
         return Response(ProfileSelfSerializer(profile).data)
 
+    @extend_schema(request=ProfileWriteSerializer, responses=ProfileSelfSerializer)
     def post(self, request, *args, **kwargs):
         if Profile.objects.filter(user=request.user).exists():
             return Response(
@@ -63,6 +67,7 @@ class MyProfileView(generics.GenericAPIView):
             ProfileSelfSerializer(profile).data, status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(request=ProfileWriteSerializer, responses=ProfileSelfSerializer)
     def patch(self, request, *args, **kwargs):
         profile = self._profile()
         if not self._ensure_staff_only():

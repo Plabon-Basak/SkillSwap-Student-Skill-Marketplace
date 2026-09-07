@@ -5,6 +5,7 @@ proxies name fields to the user account; read serializers are split into a
 public and an owner-only variant so sensitive data is never exposed publicly.
 """
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.profiles.models import Profile, Skill
@@ -21,6 +22,7 @@ class SkillSerializer(serializers.ModelSerializer):
 class ProfilePublicSerializer(serializers.Serializer):
     """Public view of a profile; deliberately excludes contact data."""
 
+    id = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     display_name = serializers.CharField(read_only=True)
     avatar = serializers.ImageField(read_only=True)
@@ -36,12 +38,14 @@ class ProfilePublicSerializer(serializers.Serializer):
     rating_average = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.FloatField(allow_null=True))
     def get_rating_average(self, profile):
         value = getattr(profile, 'rating_average', None)
         if value is None:
             return None
         return float(round(value, 2))
 
+    @extend_schema_field(serializers.IntegerField())
     def get_rating_count(self, profile):
         value = getattr(profile, 'rating_count', None)
         if value is None:

@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.listings.models import Application, Category, Listing
 from apps.profiles.models import Profile, Skill
+from apps.profiles.serializers import SkillSerializer
 
 MAX_SKILLS = 10
 
@@ -13,12 +14,6 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'slug', 'description']
         read_only_fields = ['id']
-
-
-class SkillSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Skill
-        fields = ['id', 'name', 'slug']
 
 
 class ProviderSummarySerializer(serializers.Serializer):
@@ -63,6 +58,8 @@ class ListingSerializer(serializers.ModelSerializer):
             'location',
             'cover_image',
             'is_active',
+            'is_archived',
+            'moderation_status',
             'created_at',
             'updated_at',
         ]

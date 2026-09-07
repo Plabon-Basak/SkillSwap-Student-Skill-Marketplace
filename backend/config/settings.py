@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'drf_spectacular',
     # Local apps
     'apps.core',
     'apps.users',
@@ -95,6 +96,7 @@ INSTALLED_APPS = [
     'apps.messaging',
     'apps.notifications',
     'apps.reviews',
+    'apps.moderation',
 ]
 
 MIDDLEWARE = [
@@ -157,6 +159,7 @@ REST_FRAMEWORK = {
     # Secure by default: endpoints require authentication unless explicitly
     # allowed (e.g. registration, login, public listing search).
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer',),
@@ -176,6 +179,35 @@ REST_FRAMEWORK = {
         'message_send': '60/min',
         'review_create': '10/min',
     },
+}
+
+# OpenAPI schema generation (drf-spectacular).
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'SkillSwap API',
+    'DESCRIPTION': (
+        'Marketplace API for students to trade skills. Manage profiles, '
+        'listings, applications, orders, messaging, notifications, reviews '
+        'and moderation.'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {
+            'name': 'auth',
+            'description': 'Registration, login, email verification and password reset.',
+        },
+        {'name': 'profiles', 'description': 'Student profiles and skills.'},
+        {'name': 'listings', 'description': 'Services, categories and applications.'},
+        {'name': 'orders', 'description': 'Order lifecycle and payments.'},
+        {'name': 'messaging', 'description': 'Order-linked conversation threads.'},
+        {'name': 'notifications', 'description': 'User notifications and read state.'},
+        {'name': 'reviews', 'description': 'Ratings on completed orders.'},
+        {
+            'name': 'moderation',
+            'description': 'Reports and staff review of users and listings.',
+        },
+    ],
 }
 
 # JWT configuration. When JWT_SECRET_KEY is empty the Django SECRET_KEY is
@@ -238,10 +270,10 @@ USE_TZ = True
 # --------------------------------------------------------------------------
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = Path(_env('STATIC_ROOT', str(BASE_DIR / 'staticfiles')))
 
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(_env('MEDIA_ROOT', str(BASE_DIR / 'media')))
 
 # --------------------------------------------------------------------------
 # Email

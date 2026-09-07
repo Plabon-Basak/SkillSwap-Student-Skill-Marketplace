@@ -2,6 +2,7 @@
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -189,6 +190,7 @@ class ListingApplicationsView(generics.GenericAPIView):
     """Applications to one listing; providers list them, buyers apply."""
 
     throttle_scope = 'application_create'
+    serializer_class = ApplicationSerializer
 
     def _listing_for_request(self):
         return get_object_or_404(Listing, slug=self.kwargs['slug'])
@@ -207,6 +209,7 @@ class ListingApplicationsView(generics.GenericAPIView):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    @extend_schema(request=ApplicationWriteSerializer, responses=ApplicationSerializer)
     def post(self, request, *args, **kwargs):
         profile = _current_profile(request.user)
         if profile is None:
