@@ -1,0 +1,21 @@
+# Local/CI python workspace
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
+
+# Django generated artifacts
+db.sqlite3
+staticfiles/
+media/
+collect.log
+fullrun*.log
+
+# Tooling / editor
+.idea/
+.vscode/
