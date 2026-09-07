@@ -1,0 +1,10 @@
+# Build/runtime artifacts
+node_modules/
+dist/
+coverage/
+*.log
+
+# Editor / tooling
+.idea/
+.vscode/
+.DS_Store
