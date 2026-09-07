@@ -6,6 +6,7 @@ from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.listings.models import Category
@@ -13,6 +14,7 @@ from apps.listings.services import accept_application, apply_to_listing
 from apps.notifications.models import Notification
 from apps.orders.models import Order
 from apps.profiles.models import Profile
+from apps.reviews import services
 from apps.reviews.models import Review
 
 
@@ -248,3 +250,31 @@ class ProfileReviewsTests(ReviewSetupMixin):
     def test_unknown_profile_reviews_404(self):
         response = client().get(reverse('profile-reviews', args=['nobody']))
         self.assertEqual(response.status_code, 404)
+
+
+class ReviewServiceTests(ReviewSetupMixin):
+    def test_service_rejects_non_buyer_reviewer(self):
+        stranger = make_player('stranger')
+        stranger_profile = make_profile(stranger)
+        with self.assertRaises(ValidationError):
+            services.create_review(
+                order=self.order,
+                reviewer=stranger_profile,
+                rating=5,
+                comment='Snooping.',
+            )
+
+    def test_rating_for_profile_aggregates(self):
+        self._review(rating=5)
+        result = services.rating_for_profile(self.provider.profile)
+        self.assertEqual(result['count'], 1)
+        self.assertEqual(result['average'], float(Decimal('5.0')))
+
+    def test_rating_aggregate_for_profiles_annotates(self):
+        self._review(rating=4)
+        qs = services.rating_aggregate_for_profiles(
+            Profile.objects.filter(id=self.provider.profile.id)
+        )
+        profile = qs.get()
+        self.assertEqual(profile.rating_count, 1)
+        self.assertAlmostEqual(float(profile.rating_average), 4.0, places=2)

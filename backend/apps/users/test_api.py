@@ -425,3 +425,40 @@ class OTPModelTests(AuthTestBase):
         otp = user.one_time_passwords.get()
         self.assertNotEqual(otp.hashed_code, extract_code())
         self.assertTrue(otp.hashed_code.startswith('pbkdf2'))
+
+    def test_expired_otp_is_rejected_and_marked_used(self):
+        from django.utils import timezone
+
+        user = self.create_user()
+        services.issue_otp(user, OneTimePasswordPurpose.EMAIL_VERIFICATION)
+        otp = user.one_time_passwords.get()
+        otp.expires_at = timezone.now() - timezone.timedelta(minutes=1)
+        otp.save(update_fields=['expires_at'])
+
+        ok = services.verify_otp(
+            user, OneTimePasswordPurpose.EMAIL_VERIFICATION, extract_code()
+        )
+
+        self.assertFalse(ok)
+        otp.refresh_from_db()
+        self.assertTrue(otp.is_used)
+
+    def test_otp_rejected_after_max_attempts(self):
+        user = self.create_user()
+        services.issue_otp(user, OneTimePasswordPurpose.EMAIL_VERIFICATION)
+        code = extract_code()
+        wrong = '999999' if code != '999999' else '888888'
+
+        for _ in range(5):
+            self.assertFalse(
+                services.verify_otp(
+                    user, OneTimePasswordPurpose.EMAIL_VERIFICATION, wrong
+                )
+            )
+
+        # Even the correct code is rejected once attempts are exhausted.
+        self.assertFalse(
+            services.verify_otp(user, OneTimePasswordPurpose.EMAIL_VERIFICATION, code)
+        )
+        otp = user.one_time_passwords.get()
+        self.assertTrue(otp.is_used)

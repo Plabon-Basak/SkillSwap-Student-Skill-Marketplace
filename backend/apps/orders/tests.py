@@ -1,13 +1,17 @@
 """Tests for orders and payments (lifecycle, checkout, webhook)."""
 
+from unittest import mock
+
 from django.core import mail
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.listings.models import Category, Listing
 from apps.listings.services import accept_application, apply_to_listing
+from apps.orders import services
 from apps.orders.models import Order, Payment
 from apps.profiles.models import Profile
 
@@ -366,3 +370,266 @@ class OrderViewTests(OrderSetupMixin):
             content_type='application/json',
         )
         self.assertEqual(response.status_code, 200)
+
+
+class RefundServiceTests(OrderSetupMixin):
+    def _create_order(self):
+        response = client().post(
+            reverse('order-list'),
+            {'application': self.application.id},
+            content_type='application/json',
+            **auth(self.buyer),
+        )
+        self.assertEqual(response.status_code, 201)
+        return Order.objects.get(application=self.application)
+
+    def test_refund_rejects_unpaid_order(self):
+        order = self._create_order()
+        with self.assertRaises(ValidationError):
+            services.refund_order(order)
+
+    def test_refund_flips_order_and_payment(self):
+        order = self._create_order()
+        client().post(
+            reverse('order-mock-confirm', args=[order.id]), **auth(self.buyer)
+        )
+        order.refresh_from_db()
+
+        refunded = services.refund_order(order)
+
+        order.refresh_from_db()
+        self.assertEqual(refunded.status, Order.Status.REFUNDED)
+        self.assertEqual(order.status, Order.Status.REFUNDED)
+        self.assertEqual(order.payment.status, Payment.Status.REFUNDED)
+
+    def test_can_refund_in_progress_order(self):
+        order = self._create_order()
+        client().post(
+            reverse('order-mock-confirm', args=[order.id]), **auth(self.buyer)
+        )
+        client().patch(
+            reverse('order-detail', args=[order.id]),
+            {'action': 'start'},
+            content_type='application/json',
+            **auth(self.provider),
+        )
+        order.refresh_from_db()
+
+        services.refund_order(order)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.REFUNDED)
+
+
+class SimulationGatewayTests(OrderSetupMixin):
+    def test_checkout_creates_simulation_session(self):
+        client().post(
+            reverse('order-list'),
+            {'application': self.application.id},
+            content_type='application/json',
+            **auth(self.buyer),
+        )
+        order = Order.objects.get(application=self.application)
+
+        session = services.gateway().create_checkout_session(order)
+
+        self.assertEqual(session['mode'], 'simulation')
+        self.assertTrue(session['session_id'].startswith('sim_'))
+        order.payment.refresh_from_db()
+        self.assertEqual(order.payment.gateway, 'simulation')
+        self.assertEqual(order.payment.gateway_session_id, session['session_id'])
+
+    def test_simulation_webhook_acknowledges_quietly(self):
+        self.assertIsNone(services.SimulationGateway().handle_webhook(None))
+
+
+class StripeGatewayTests(OrderSetupMixin):
+    def _create_order(self):
+        response = client().post(
+            reverse('order-list'),
+            {'application': self.application.id},
+            content_type='application/json',
+            **auth(self.buyer),
+        )
+        self.assertEqual(response.status_code, 201)
+        return Order.objects.get(application=self.application)
+
+    def stub_stripe(self, event_type='checkout.session.completed', metadata=None):
+        object_ = {'metadata': metadata or {}}
+        if event_type == 'checkout.session.completed':
+            object_['payment_intent'] = 'pi_test_1'
+
+        class FakeWebhook:
+            @staticmethod
+            def construct_event(payload, signature, secret):
+                return {'type': event_type, 'data': {'object': object_}}
+
+        class FakeSession:
+            id = 'cs_test_123'
+            url = 'https://checkout.stripe.com/cs_test_123'
+
+        class FakeStripe:
+            class checkout:
+                class Session:
+                    @staticmethod
+                    def create(**kwargs):
+                        return FakeSession()
+
+            Webhook = FakeWebhook
+
+        return FakeStripe
+
+    def test_checkout_creates_stripe_session(self):
+        order = self._create_order()
+        gateway = services.StripeGateway()
+        with mock.patch.object(
+            services.StripeGateway, '_client', return_value=self.stub_stripe()
+        ):
+            session = gateway.create_checkout_session(order)
+
+        self.assertEqual(
+            session,
+            {
+                'session_id': 'cs_test_123',
+                'url': 'https://checkout.stripe.com/cs_test_123',
+                'mode': 'stripe',
+            },
+        )
+        order.payment.refresh_from_db()
+        self.assertEqual(order.payment.gateway, 'stripe')
+        self.assertEqual(order.payment.gateway_session_id, 'cs_test_123')
+
+    def test_webhook_marks_order_paid(self):
+        order = self._create_order()
+        gateway = services.StripeGateway()
+        request = mock.Mock(body=b'{}', headers={'Stripe-Signature': 'sig_test_1'})
+        fake = self.stub_stripe(metadata={'order_id': str(order.id)})
+        with mock.patch.object(services.StripeGateway, '_client', return_value=fake):
+            gateway.handle_webhook(request)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertEqual(order.payment.status, Payment.Status.PAID)
+        self.assertEqual(order.payment.gateway_charge_id, 'pi_test_1')
+
+    def test_webhook_ignores_unrelated_events(self):
+        order = self._create_order()
+        gateway = services.StripeGateway()
+        request = mock.Mock(body=b'{}', headers={'Stripe-Signature': 'sig'})
+        with mock.patch.object(
+            services.StripeGateway,
+            '_client',
+            return_value=self.stub_stripe(event_type='payment_intent.created'),
+        ):
+            gateway.handle_webhook(request)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PENDING_PAYMENT)
+
+
+class MockConfirmConfigurationTests(OrderSetupMixin):
+    def test_mock_confirm_disabled_when_stripe_configured(self):
+        created = client().post(
+            reverse('order-list'),
+            {'application': self.application.id},
+            content_type='application/json',
+            **auth(self.buyer),
+        )
+        self.assertEqual(created.status_code, 201)
+        order_id = created.json()['id']
+
+        with mock.patch.object(services, 'CONFIGURED', True):
+            response = client().post(
+                reverse('order-mock-confirm', args=[order_id]), **auth(self.buyer)
+            )
+
+        self.assertEqual(response.status_code, 404)
+
+
+class OrderGuardTests(OrderSetupMixin):
+    def _create_order(self):
+        response = client().post(
+            reverse('order-list'),
+            {'application': self.application.id},
+            content_type='application/json',
+            **auth(self.buyer),
+        )
+        self.assertEqual(response.status_code, 201)
+        return response.json()['id']
+
+    def test_list_is_empty_for_user_without_profile(self):
+        no_profile = make_player('noprofile2')
+        response = client().get(reverse('order-list'), **auth(no_profile))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['results'], [])
+
+    def test_buyer_role_filter(self):
+        self._create_order()
+        response = client().get(
+            reverse('order-list'), {'role': 'buyer'}, **auth(self.provider)
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['results'], [])
+
+    def test_detail_404_for_user_without_profile(self):
+        order_id = self._create_order()
+        no_profile = make_player('noprofile3')
+        response = client().get(
+            reverse('order-detail', args=[order_id]), **auth(no_profile)
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_staff_cannot_cancel_participant_order(self):
+        from apps.users.models import User
+
+        staff = User.objects.create_user(
+            username='staff',
+            email='staff@example.com',
+            password='strong-pass-123',
+        )
+        staff.is_staff = True
+        staff.email_verified = True
+        staff.save()
+        order_id = self._create_order()
+
+        response = client().patch(
+            reverse('order-detail', args=[order_id]),
+            {'action': 'cancel'},
+            content_type='application/json',
+            **auth(staff),
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_provider_cannot_start_unpaid_order(self):
+        order_id = self._create_order()
+        response = client().patch(
+            reverse('order-detail', args=[order_id]),
+            {'action': 'start'},
+            content_type='application/json',
+            **auth(self.provider),
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_checkout_returns_400_when_gateway_fails(self):
+        order_id = self._create_order()
+        with mock.patch.object(
+            services,
+            'gateway',
+            side_effect=RuntimeError('stripe unavailable'),
+        ):
+            response = client().post(
+                reverse('order-checkout', args=[order_id]), **auth(self.buyer)
+            )
+        self.assertEqual(response.status_code, 400)
+
+    def test_webhook_returns_400_when_processing_fails(self):
+        gateway = mock.Mock()
+        gateway.handle_webhook.side_effect = Exception('signature mismatch')
+        with mock.patch.object(services, 'gateway', return_value=gateway):
+            response = client().post(
+                reverse('stripe-webhook'),
+                {},
+                content_type='application/json',
+            )
+        self.assertEqual(response.status_code, 400)
