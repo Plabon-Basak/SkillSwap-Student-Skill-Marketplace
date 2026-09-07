@@ -21,3 +21,15 @@ class NotificationSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = fields
+
+
+class UnreadCountSerializer(serializers.Serializer):
+    """Simple counter payload, shared by notifications and threads."""
+
+    count = serializers.IntegerField(read_only=True)
+
+
+class MarkedReadSerializer(serializers.Serializer):
+    """Number of notifications marked as read by a bulk action."""
+
+    marked_read = serializers.IntegerField(read_only=True)

@@ -30,3 +30,17 @@ class OrderSerializer(serializers.Serializer):
 class OrderCreateSerializer(serializers.Serializer):
     application = serializers.IntegerField()
     note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+
+class OrderActionSerializer(serializers.Serializer):
+    """Explicit status transition applied in an order PATCH."""
+
+    action = serializers.ChoiceField(choices=['cancel', 'start', 'complete'])
+
+
+class CheckoutSessionSerializer(serializers.Serializer):
+    """Result of opening a payment session; simulation in dev, Stripe in prod."""
+
+    session_id = serializers.CharField(read_only=True)
+    url = serializers.CharField(read_only=True)
+    mode = serializers.ChoiceField(choices=['simulation', 'stripe'], read_only=True)

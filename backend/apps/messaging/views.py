@@ -1,12 +1,14 @@
 """API views for order conversation threads."""
 
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 
 from apps.messaging import services
 from apps.messaging.models import Thread
 from apps.messaging.serializers import MessageSerializer, ThreadSerializer
+from apps.notifications.serializers import UnreadCountSerializer
 from apps.users.permissions import IsEmailVerified
 
 
@@ -26,6 +28,7 @@ def _thread_for_user(request, thread_pk):
 
 class MyThreadsView(generics.GenericAPIView):
     permission_classes = [IsEmailVerified]
+    serializer_class = ThreadSerializer
 
     def get(self, request, *args, **kwargs):
         profile = _current_profile(request.user)
@@ -45,6 +48,7 @@ class MyThreadsView(generics.GenericAPIView):
 
 class ThreadDetailView(generics.GenericAPIView):
     permission_classes = [IsEmailVerified]
+    serializer_class = ThreadSerializer
 
     def _thread(self, request):
         return _thread_for_user(request, self.kwargs['pk'])
@@ -60,6 +64,7 @@ class ThreadDetailView(generics.GenericAPIView):
 class ThreadMessageListCreateView(generics.GenericAPIView):
     permission_classes = [IsEmailVerified]
     throttle_scope = 'message_send'
+    serializer_class = MessageSerializer
 
     def _thread(self, request):
         return _thread_for_user(request, self.kwargs['pk'])
@@ -92,6 +97,7 @@ class ThreadMessageListCreateView(generics.GenericAPIView):
 class ThreadUnreadCountView(generics.GenericAPIView):
     permission_classes = [IsEmailVerified]
 
+    @extend_schema(responses=UnreadCountSerializer)
     def get(self, request, *args, **kwargs):
         profile = _current_profile(request.user)
         threads = Thread.objects.filter(buyer=profile) | Thread.objects.filter(

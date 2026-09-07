@@ -1,6 +1,7 @@
 """API views for ratings and reviews."""
 
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -18,7 +19,9 @@ class ReviewCreateView(generics.GenericAPIView):
 
     throttle_scope = 'review_create'
     permission_classes = [IsEmailVerified]
+    serializer_class = ReviewCreateSerializer
 
+    @extend_schema(request=ReviewCreateSerializer, responses=ReviewSerializer)
     def post(self, request, *args, **kwargs):
         profile = getattr(request.user, 'profile', None)
         if profile is None:

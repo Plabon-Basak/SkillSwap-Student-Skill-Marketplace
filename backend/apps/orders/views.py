@@ -3,6 +3,7 @@
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -10,7 +11,12 @@ from rest_framework.response import Response
 from apps.listings.models import Application
 from apps.orders import services
 from apps.orders.models import Order
-from apps.orders.serializers import OrderCreateSerializer, OrderSerializer
+from apps.orders.serializers import (
+    CheckoutSessionSerializer,
+    OrderActionSerializer,
+    OrderCreateSerializer,
+    OrderSerializer,
+)
 from apps.users.permissions import IsEmailVerified
 
 ACTION_WHITELIST = {'cancel', 'start', 'complete'}
@@ -39,6 +45,7 @@ class OrderListCreateView(generics.GenericAPIView):
 
     throttle_scope = 'order_create'
     permission_classes = [IsEmailVerified]
+    serializer_class = OrderSerializer
 
     def get(self, request, *args, **kwargs):
         qs = _orders_for_user(request)
@@ -48,6 +55,7 @@ class OrderListCreateView(generics.GenericAPIView):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    @extend_schema(request=OrderCreateSerializer, responses=OrderSerializer)
     def post(self, request, *args, **kwargs):
         profile = _current_profile(request.user)
         if profile is None:
@@ -82,6 +90,7 @@ class OrderDetailView(generics.GenericAPIView):
     """View an order, or transition it via an explicit action."""
 
     permission_classes = [IsEmailVerified]
+    serializer_class = OrderSerializer
 
     def _order(self, request):
         profile = _current_profile(request.user)
@@ -97,6 +106,7 @@ class OrderDetailView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
         return Response(OrderSerializer(self._order(request)).data)
 
+    @extend_schema(request=OrderActionSerializer, responses=OrderSerializer)
     def patch(self, request, *args, **kwargs):
         order = self._order(request)
         action = request.data.get('action')
@@ -148,6 +158,7 @@ class OrderCheckoutView(generics.GenericAPIView):
             'buyer__user', 'provider__user', 'listing', 'application'
         )
 
+    @extend_schema(request=None, responses=CheckoutSessionSerializer)
     def post(self, request, *args, **kwargs):
         order = get_object_or_404(self.get_queryset(), pk=self.kwargs['pk'])
         if order.buyer.user_id != request.user.id:
@@ -165,6 +176,7 @@ class OrderCheckoutView(generics.GenericAPIView):
 class OrderMockConfirmView(generics.GenericAPIView):
     """Dev-only helper that marks an order paid in simulation mode."""
 
+    @extend_schema(request=None, responses=OrderSerializer)
     def post(self, request, *args, **kwargs):
         if services.CONFIGURED:
             raise Http404('Real checkout configured; this endpoint is disabled.')
@@ -178,6 +190,7 @@ class StripeWebhookView(generics.GenericAPIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(request=None, responses={200: None, 400: None})
     def post(self, request, *args, **kwargs):
         try:
             services.gateway().handle_webhook(request)

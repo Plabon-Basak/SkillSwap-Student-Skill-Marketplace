@@ -1,5 +1,6 @@
 """Serializers for threads and messages."""
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.listings.serializers import ProviderSummarySerializer
@@ -23,6 +24,7 @@ class ThreadSerializer(serializers.Serializer):
     unread_count = serializers.SerializerMethodField()
     created_at = serializers.DateTimeField(read_only=True)
 
+    @extend_schema_field(serializers.IntegerField())
     def get_unread_count(self, thread):
         from apps.messaging.services import unread_count_for
 
